@@ -8,30 +8,28 @@ class recaptcha_v3 extends rcube_plugin
     private $recaptcha_site_key;
     private $recaptcha_secret_key;
 
-    function init()
+    public function init()
     {
+        $this->rc = rcmail::get_instance();
+        $this->load_config('config.inc.php');
         $this->load_config();
 
-        // Load site key and secret key from config
-        $this->recaptcha_site_key = rcmail::get_instance()->config->get('recaptcha_site_key');
-        $this->recaptcha_secret_key = rcmail::get_instance()->config->get('recaptcha_secret_key');
-
-        // Add JavaScript to the login page
-        $this->add_hook('login_form', array($this, 'add_recaptcha_script'));
-        $this->add_hook('authenticate', array($this, 'verify_recaptcha'));
+        // Replace 'login_form' with 'template_object_loginform'
+        $this->add_hook('template_object_loginform', array($this, 'add_recaptcha_script'));
     }
 
     /**
      * Adds the reCAPTCHA v3 JavaScript to the login form.
      */
-    function add_recaptcha_script($args)
+    public function add_recaptcha_script($args)
     {
-        if ($this->recaptcha_site_key) {
-            $args['content'] .= '<script src="https://www.google.com/recaptcha/api.js?render=' . $this->recaptcha_site_key . '"></script>';
+        // Inject the reCAPTCHA v3 JavaScript
+        if ($this->rc->config->get('recaptcha_site_key')) {
+            $args['content'] .= '<script src="https://www.google.com/recaptcha/api.js?render=' . $this->rc->config->get('recaptcha_site_key') . '"></script>';
             $args['content'] .= '
                 <script>
                     grecaptcha.ready(function() {
-                        grecaptcha.execute("' . $this->recaptcha_site_key . '", { action: "login" }).then(function(token) {
+                        grecaptcha.execute("' . $this->rc->config->get('recaptcha_site_key') . '", { action: "login" }).then(function(token) {
                             var recaptchaInput = document.createElement("input");
                             recaptchaInput.setAttribute("type", "hidden");
                             recaptchaInput.setAttribute("name", "g-recaptcha-response");
@@ -40,7 +38,10 @@ class recaptcha_v3 extends rcube_plugin
                         });
                     });
                 </script>';
+        } else {
+            $args['content'] .= '<p style="color: red;">Missing reCAPTCHA site key in configuration!</p>';
         }
+
         return $args;
     }
 
