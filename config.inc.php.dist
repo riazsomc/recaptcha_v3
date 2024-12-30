@@ -1,0 +1,15 @@
+<?php
+// File: config.inc.php.dist
+
+/**
+ * Configuration for the reCAPTCHA v3 plugin
+ */
+
+// Your Google reCAPTCHA v3 site key
+$config['recaptcha_site_key'] = 'your-site-key';
+
+// Your Google reCAPTCHA v3 secret key
+$config['recaptcha_secret_key'] = 'your-secret-key';
+
+// Minimum acceptable reCAPTCHA score (0.0 to 1.0)
+$config['recaptcha_min_score'] = 0.5;
