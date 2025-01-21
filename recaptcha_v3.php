@@ -14,8 +14,13 @@ class recaptcha_v3 extends rcube_plugin
         $this->load_config('config.inc.php');
         $this->load_config();
 
+        $this->recaptcha_site_key = $this->rc->config->get('recaptcha_site_key');
+        $this->recaptcha_secret_key = $this->rc->config->get('recaptcha_secret_key');
+
+
         // Replace 'login_form' with 'template_object_loginform'
         $this->add_hook('template_object_loginform', array($this, 'add_recaptcha_script'));
+        $this->add_hook('authenticate', array($this, 'verify_recaptcha'));
     }
 
     /**
@@ -50,15 +55,26 @@ class recaptcha_v3 extends rcube_plugin
      */
     function verify_recaptcha($args)
     {
+
         $recaptcha_response = rcube_utils::get_input_value('g-recaptcha-response', rcube_utils::INPUT_POST);
+
+        error_log("Received reCAPTCHA token: " . $recaptcha_response);
 
         if ($this->recaptcha_secret_key && $recaptcha_response) {
             $verify_response = $this->recaptcha_verify($recaptcha_response);
-            if (!$verify_response || $verify_response->score < 0.5) {
-                // Reject login if score is below threshold
-                rcube::raise_error(array('code' => 403, 'type' => 'php', 'file' => __FILE__,
-                    'line' => __LINE__, 'message' => "reCAPTCHA verification failed"), true, false);
-                $args['abort'] = true;
+
+            error_log("Google reCAPTCHA API response: " . json_encode($verify_response));
+
+            if (!$verify_response || !isset($verify_response->success) || !$verify_response->success || $verify_response->score < 0.5) {
+                rcube::raise_error(array(
+                    'code' => 403,
+                    'type' => 'php',
+                    'file' => __FILE__,
+                    'line' => __LINE__,
+                    'message' => "reCAPTCHA verification failed"
+                ), true, false);
+
+                $args['abort'] = true; // Abort the login process
             }
         }
 
@@ -86,7 +102,12 @@ class recaptcha_v3 extends rcube_plugin
         );
 
         $context = stream_context_create($options);
-        $result = file_get_contents($url, false, $context);
+        $result = @file_get_contents($url, false, $context); // Use @ to suppress warnings
+        if ($result === false) {
+            return null; // Handle API request failure gracefully
+        }
+
         return json_decode($result);
     }
+
 }
